@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebLearnBoost</title>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+    --bg: oklch(99% 0.002 240);
+    --surface: oklch(100% 0 0);
+    --fg: oklch(18% 0.012 250);
+    --muted: oklch(48% 0.012 250);
+    --faint: oklch(65% 0.012 250);
+    --border: oklch(92% 0.005 250);
+    --accent: oklch(62% 0.16 175);
+    --accent-dim: oklch(55% 0.12 175);
+    --accent-soft: oklch(94% 0.03 175);
+    --danger: oklch(55% 0.16 20);
+    --success: #059669;
+    --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: #e8e8ea; font-family: var(--font-body); color: var(--fg);
+    display: flex; align-items: center; justify-content: center;
+    height: 100vh; overflow: hidden; -webkit-font-smoothing: antialiased;
+}
+#viewport {
+    width: 1440px; height: 900px; background: var(--bg);
+    border-radius: var(--radius-lg); box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+    display: flex; flex-direction: column; overflow: hidden;
+}
+header.browser-chrome {
+    height: 48px; flex-shrink: 0; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 14px; gap: 12px; z-index: 100;
+}
+.traffic-lights { display: flex; gap: 7px; }
+.traffic-lights span { width: 11px; height: 11px; border-radius: 50%; }
+.traffic-lights span:nth-child(1) { background: #ff5f56; }
+.traffic-lights span:nth-child(2) { background: #ffbd2e; }
+.traffic-lights span:nth-child(3) { background: #27c93f; }
+.address-bar {
+    flex: 1; height: 30px; background: oklch(97% 0.002 240);
+    border: 1px solid var(--border); border-radius: 15px;
+    display: flex; align-items: center; padding: 0 14px;
+    font-size: 12px; color: var(--muted);
+}
+.ext-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 14px;
+    background: var(--accent-soft); font-size: 11px;
+    font-weight: 600; color: var(--accent); white-space: nowrap;
+}
+main { display: flex; flex: 1; overflow: hidden; }
+
+/* Left: Web Page */
+.web-page {
+    width: 60%; background: var(--surface); overflow-y: auto;
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+}
+.site-nav {
+    height: 44px; flex-shrink: 0; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 40px; gap: 24px;
+    font-size: 13px; color: var(--muted); position: sticky; top: 0; z-index: 10;
+}
+.site-nav .site-logo { font-weight: 700; color: var(--fg); font-size: 15px; letter-spacing: -0.01em; margin-right: auto; }
+.site-nav a { text-decoration: none; color: var(--muted); }
+.site-nav a:hover { color: var(--fg); }
+.page-content { max-width: 680px; margin: 0 auto; padding: 48px 0 80px; width: 100%; }
+.page-content .eyebrow { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 12px; }
+.page-content h1 { font-family: var(--font-display); font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 12px; color: oklch(12% 0.012 250); }
+.page-content .byline { font-size: 12px; color: var(--muted); margin-bottom: 36px; display: flex; gap: 12px; }
+.page-content p { font-size: 15px; line-height: 1.65; margin-bottom: 20px; color: oklch(28% 0.012 250); }
+.page-content h2 { font-family: var(--font-display); font-size: 20px; font-weight: 600; margin: 42px 0 16px; letter-spacing: -0.01em; color: oklch(15% 0.012 250); }
+.code-block {
+    background: oklch(97% 0.004 250); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 16px 20px;
+    font-family: var(--font-mono); font-size: 13px; margin: 24px 0;
+    white-space: pre-wrap; line-height: 1.5; color: oklch(25% 0.01 250);
+}
+.code-block.dark { background: oklch(16% 0.01 250); color: oklch(92% 0.005 250); border-color: oklch(22% 0.01 250); }
+.hl { background: var(--accent-soft); color: var(--accent-dim); padding: 1px 4px; border-radius: 2px; font-weight: 500; }
+.pull { border-left: 3px solid var(--accent); padding-left: 16px; margin: 28px 0; font-size: 14px; color: var(--muted); font-style: italic; line-height: 1.6; }
+
+/* Right: Sidebar */
+.sidebar { width: 40%; min-width: 480px; background: oklch(98% 0.002 240); display: flex; flex-direction: column; }
+.sidebar-top { padding: 14px 20px; flex-shrink: 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+.sidebar-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.sb-logo { width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+.sb-name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+.sb-subtitle { font-size: 11px; color: var(--faint); margin-left: 4px; }
+.sb-tabs { display: flex; gap: 4px; background: oklch(96% 0.002 240); border-radius: var(--radius-md); padding: 3px; }
+.sb-tab {
+    flex: 1; text-align: center; padding: 7px 0; font-size: 12px; font-weight: 500;
+    color: var(--muted); cursor: pointer; border-radius: 5px; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;
+}
+.sb-tab:hover { color: var(--fg); }
+.sb-tab.active { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.sb-tab .step-num { width: 17px; height: 17px; border-radius: 50%; background: var(--border); color: var(--muted); font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.sb-tab.active .step-num { background: var(--accent); color: #fff; }
+.sb-tab.done .step-num { background: var(--accent-soft); color: var(--accent); }
+.sb-tab.locked { opacity: 0.5; cursor: not-allowed; }
+
+.sb-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.sb-status { padding: 10px 20px; flex-shrink: 0; background: var(--surface); border-top: 1px solid var(--border); font-size: 11px; color: var(--faint); display: flex; justify-content: space-between; align-items: center; }
+.sb-status .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; margin-right: 6px; display: inline-block; }
+
+/* Shared */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px 18px; }
+.card.accent-left { border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; border-radius: var(--radius-md); font-weight: 500; font-size: 13px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; font-family: var(--font-body); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-dim); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-secondary { background: var(--surface); border-color: var(--border); color: var(--fg); }
+.btn-secondary:hover { background: oklch(97% 0.002 240); }
+.btn-large { padding: 14px 24px; font-size: 14px; font-weight: 600; border-radius: var(--radius-lg); }
+.btn-block { width: 100%; }
+.alert { background: oklch(96% 0.05 25); border: 1px solid oklch(85% 0.1 25); color: var(--danger); padding: 10px 14px; border-radius: var(--radius-md); font-size: 12px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
+.alert.info { background: oklch(97% 0.01 175); border-color: oklch(88% 0.04 175); color: oklch(38% 0.08 175); }
+.section-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--faint); margin-bottom: 8px; }
+
+/* Map Tree */
+.tree-node { position: relative; padding: 10px 0 10px 24px; border-left: 2px solid oklch(88% 0.01 240); }
+.tree-node::before { content: ''; position: absolute; left: -7px; top: 14px; width: 11px; height: 11px; border-radius: 50%; background: var(--surface); border: 2px solid oklch(88% 0.01 240); }
+.tree-node.current::before { border-color: var(--accent); background: var(--accent); }
+.tn-title { font-size: 13px; font-weight: 600; }
+.tn-meta { font-size: 11px; color: var(--faint); margin-top: 2px; }
+.concept-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.concept-chip { font-size: 11px; padding: 4px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; white-space: nowrap; font-weight: 500; }
+.concept-arrow { font-size: 14px; color: var(--accent); font-weight: 600; }
+.order-list { display: flex; flex-direction: column; gap: 6px; }
+.order-item { display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.order-num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* Quiz */
+.quiz-progress { display: flex; gap: 6px; margin-bottom: 16px; }
+.qp-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--border); }
+.qp-dot.done { background: var(--accent); }
+.qp-dot.current { background: var(--accent); }
+.quiz-q { font-size: 14px; font-weight: 600; line-height: 1.45; margin-bottom: 16px; }
+.quiz-opt { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 8px; cursor: pointer; font-size: 13px; line-height: 1.4; transition: all 0.12s; }
+.quiz-opt:hover:not(.locked) { background: oklch(98% 0.002 240); }
+.quiz-opt.locked { cursor: default; }
+.qo-radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.quiz-opt.selected { border-color: var(--accent); background: var(--accent-soft); }
+.quiz-opt.selected .qo-radio { border-color: var(--accent); background: var(--accent); }
+.quiz-opt.correct { border-color: var(--success); background: oklch(97% 0.06 160); }
+.quiz-opt.wrong { border-color: #ef4444; background: oklch(97% 0.04 20); }
+.quiz-feedback { margin-top: 16px; padding: 14px 16px; background: oklch(98% 0.002 240); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.source-cite { margin-top: 10px; padding: 10px 12px; background: var(--surface); border-radius: var(--radius-sm); font-size: 11px; color: var(--muted); line-height: 1.5; border-left: 3px solid var(--accent); }
+
+/* History */
+.hist-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; transition: background 0.1s; }
+.hist-item:hover { background: oklch(98% 0.002 240); }
+.hist-item + .hist-item { border-top: 1px solid var(--border); }
+.hist-badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.hist-badge.latest { background: var(--accent-soft); color: var(--accent); }
+
+/* Settings */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 11px; font-weight: 500; color: var(--muted); display: block; margin-bottom: 5px; }
+.form-input, .form-select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; font-family: var(--font-body); background: var(--surface); }
+.form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.form-row { display: flex; gap: 12px; }
+.form-row > * { flex: 1; }
+
+/* Loading */
+.loading-spin { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.25s ease-out forwards; }
+
+/* Export */
+.export-menu { position: absolute; right: 0; bottom: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0,0,0,0.1); padding: 6px; min-width: 150px; z-index: 200; margin-bottom: 6px; }
+.export-menu-item { padding: 8px 12px; font-size: 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.export-menu-item:hover { background: oklch(97% 0.002 240); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(85% 0.005 250); border-radius: 10px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+const Ico = ({ n }) => {
+    const m = {
+        gear: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 0 2.83-2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>,
+        zap: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>,
+        check: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>,
+        lock: <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+        alert: <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>,
+        book: <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
+        link: <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14L21 3"/></svg>,
+        target: <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>,
+        download: <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>,
+    };
+    return m[n] || null;
+};
+
+const EntryView = ({ onGenerate }) => (
+    <div className="sb-body fade-in">
+        <div className="alert"><Ico n="alert" /><span>未检测到有效 API Key — 将使用 <strong>Demo 模式</strong>运行，不消耗配额。</span></div>
+        <div className="card">
+            <div className="section-label">当前页面</div>
+            <div style={{fontSize:'13px',fontWeight:600,lineHeight:1.4,marginBottom:8}}>RAG 架构深度解析：从文档切分、向量检索到答案生成</div>
+            <div style={{fontSize:'11px',color:'var(--faint)',display:'flex',alignItems:'center',gap:4}}><Ico n="link" /> tech.blog/posts/rag-deep-dive-2024</div>
+        </div>
+        <div>
+            <div className="section-label">分析范围</div>
+            <div style={{display:'flex',gap:4,background:'oklch(96% 0.003 240)',padding:3,borderRadius:'var(--radius-md)',border:'1px solid var(--border)'}}>
+                <div style={{flex:1,textAlign:'center',padding:'8px 0',fontSize:'12px',fontWeight:600,borderRadius:5,background:'var(--surface)',boxShadow:'0 1px 2px rgba(0,0,0,0.04)'}}>全文分析</div>
+                <div style={{flex:1,textAlign:'center',padding:'8px 0',fontSize:'12px',color:'var(--muted)',borderRadius:5,cursor:'pointer'}}>选中段落</div>
+            </div>
+            <div style={{fontSize:'10px',color:'var(--faint)',textAlign:'center',marginTop:6}}>全文约 1,800 词 · 预计消耗 ~800 tokens</div>
+        </div>
+        <div style={{marginTop:'auto',textAlign:'center'}}>
+            <button className="btn btn-primary btn-large btn-block" onClick={onGenerate} style={{fontSize:15,letterSpacing:'-0.01em'}}><Ico n="zap" /> 生成学习地图</button>
+            <div style={{fontSize:'11px',color:'var(--faint)',marginTop:8}}>将分析文章结构 → 提取核心概念 → 生成自测题</div>
+        </div>
+    </div>
+);
+
+const MapView = ({ onStartTraining }) => (
+    <div className="sb-body fade-in">
+        <div className="card accent-left" style={{fontSize:'13px',lineHeight:1.55}}>
+            <strong>这篇文章讲什么？</strong><br/>
+            本文深度拆解了 <span className="hl">RAG (检索增强生成)</span> 的完整技术链路——从文档摄入到最终答案生成，覆盖切分策略、向量检索机制、混合搜索原理和 Prompt 工程。
+        </div>
+        <div>
+            <div className="section-label">文章结构 & 核心概念</div>
+            <div>
+                <div className="tree-node current"><div className="tn-title">1. 数据摄入 (Ingestion)</div><div className="tn-meta">PDF 解析 · Markdown 切分 · 元数据提取</div></div>
+                <div className="tree-node current"><div className="tn-title">2. 文档切分 (Chunking)</div><div className="tn-meta">核心概念：Overlap · Chunk Size · 语义边界</div></div>
+                <div className="tree-node"><div className="tn-title">3. 向量检索 (Retrieval)</div><div className="tn-meta">Embedding · Similarity · Hybrid Search · Rerank</div></div>
+                <div className="tree-node"><div className="tn-title">4. 增强生成 (Generation)</div><div className="tn-meta">Context Window · Prompt Template · 答案校验</div></div>
+            </div>
+        </div>
+        <div className="card">
+            <div className="section-label">概念关系</div>
+            <div className="concept-flow">
+                <span className="concept-chip">文档切分</span><span className="concept-arrow">→</span>
+                <span className="concept-chip">向量嵌入</span><span className="concept-arrow">→</span>
+                <span className="concept-chip" style={{background:'var(--accent-soft)',borderColor:'var(--accent)'}}>混合检索</span><span className="concept-arrow">→</span>
+                <span className="concept-chip">上下文拼接</span><span className="concept-arrow">→</span>
+                <span className="concept-chip">LLM 生成</span>
+            </div>
+        </div>
+        <div>
+            <div className="section-label">推荐阅读顺序</div>
+            <div className="order-list">
+                <div className="order-item"><div className="order-num">1</div><div>先理解为什么要切分以及 Chunk Size 的影响</div></div>
+                <div className="order-item"><div className="order-num">2</div><div>再理解向量检索与关键字检索的互补关系</div></div>
+                <div className="order-item"><div className="order-num">3</div><div>最后看 Prompt 模板如何组织检索结果</div></div>
+            </div>
+        </div>
+        <div className="alert info"><Ico n="alert" /><span><strong>容易混淆：</strong>不要将"语义切分"和"递归字符切分"混为一谈——前者基于 NLP 模型识别语义边界，后者只是按字符数和分隔符机械切割。</span></div>
+        <div className="card" style={{fontSize:12,color:'var(--muted)',display:'flex',alignItems:'flex-start',gap:8}}><Ico n="book" /><span><strong style={{color:'var(--fg)'}}>前置知识：</strong>建议先了解 Embedding 基础概念和 Cosine Similarity 计算方式。</span></div>
+        <button className="btn btn-primary btn-large btn-block" onClick={onStartTraining} style={{flexShrink:0}}><Ico n="target" /> 开始学习训练</button>
+    </div>
+);
+
+const TrainingView = () => {
+    const [qIdx, setQIdx] = useState(0);
+    const [selected, setSelected] = useState(null);
+    const [submitted, setSubmitted] = useState(false);
+    const quiz = [
+        { q: '为什么在 RAG 架构中通常推荐使用混合搜索 (Hybrid Search)？', opts: [{id:'a',text:'仅通过增加 Chunk Size 提高准确度'},{id:'b',text:'结合关键词匹配与向量相似度，平衡精准度与语义理解',correct:true},{id:'c',text:'完全替代传统的 Elasticsearch 搜索'}], explain:'向量检索擅长语义对齐但容易丢失精确关键词匹配。混合搜索通过结合 BM25 倒排索引和向量相似度检索，确保结果的全面性和精准度。', source:'原文 §2.3：「为了解决语义鸿沟问题，混合检索结合了语义向量检索和传统关键字检索 (BM25)，成为生产环境的首选方案。」' },
+        { q: '文档切分时，设置 Overlap（重叠）的主要目的是什么？', opts: [{id:'a',text:'防止语义在切分点处断裂，保留上下文连续性',correct:true},{id:'b',text:'减少向量数据库的存储开销'},{id:'c',text:'加快 LLM 的推理速度'}], explain:'Overlap 确保相邻 Chunk 之间有内容重叠，避免关键信息刚好被切分边界割裂，从而影响检索质量。', source:'原文 §1.2：「设置适当的 Overlap 可确保语义不会在切分点断裂——这是提升检索召回率的关键技巧。」' },
+        { q: 'RAG 相比 Fine-tuning 的核心优势是什么？', opts: [{id:'a',text:'生成速度更快'},{id:'b',text:'无需训练，动态检索外部知识，知识可实时更新',correct:true},{id:'c',text:'占用更少的 GPU 显存'}], explain:'Fine-tuning 需要大量标注数据和 GPU 训练时间，且模型学到的知识是冻结的。RAG 通过运行时检索外部知识库，知识更新无需重训模型。', source:'原文引言：「不像 Fine-tuning 需要昂贵的训练成本，RAG 通过在运行时动态检索相关文档并将其注入 Prompt。」' },
+    ];
+    const cur = quiz[qIdx];
+    const total = quiz.length;
+    const isLast = qIdx === total - 1;
+    return (
+        <div className="sb-body fade-in">
+            <div className="card" style={{fontSize:12,lineHeight:1.55}}>
+                <div className="section-label">重点摘要</div>
+                混合搜索 (Hybrid Search) 是 RAG 生产部署的关键技术。单纯的向量检索在语义理解上表现出色，但面对精确术语（产品型号、ID）时易失效；传统 BM25 检索恰好弥补了这一短板。二者的权重通过 <code style={{fontFamily:'var(--font-mono)',fontSize:11,background:'var(--accent-soft)',padding:'1px 4px',borderRadius:3}}>alpha</code> 参数调节。
+            </div>
+            <div style={{flex:1}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <div className="section-label" style={{marginBottom:0}}>自测题 {qIdx+1}/{total}</div>
+                    <span style={{fontSize:11,color:'var(--faint)'}}>难度：{qIdx===0?'中等':qIdx===1?'基础':'基础'}</span>
+                </div>
+                <div className="quiz-progress">{[...Array(total)].map((_,i)=>(<div key={i} className={`qp-dot ${i<qIdx?'done':''} ${i===qIdx?'current':''}`}/>))}</div>
+                <div className="quiz-q">{cur.q}</div>
+                {cur.opts.map(opt => {
+                    let cls = 'quiz-opt';
+                    if (submitted) cls += ' locked';
+                    if (submitted && opt.correct) cls += ' correct';
+                    if (submitted && selected===opt.id && !opt.correct) cls += ' wrong';
+                    if (!submitted && selected===opt.id) cls += ' selected';
+                    return (
+                        <div key={opt.id} className={cls} onClick={()=>!submitted && setSelected(opt.id)}>
+                            <div className="qo-radio">{((submitted && opt.correct)||(!submitted && selected===opt.id)) && <div style={{width:8,height:8,borderRadius:'50%',background:submitted&&opt.correct?'var(--success)':'var(--accent)'}}/>}</div>
+                            <span>{opt.text}</span>
+                        </div>
+                    );
+                })}
+                {submitted && (
+                    <div className="quiz-feedback fade-in">
+                        <div style={{fontSize:12,fontWeight:600,marginBottom:4,color:cur.opts.find(o=>o.id===selected)?.correct?'var(--success)':'#ef4444'}}>
+                            {cur.opts.find(o=>o.id===selected)?.correct ? '✓ 回答正确！' : '✗ 回答错误'}
+                        </div>
+                        <div style={{fontSize:11,color:'var(--muted)',lineHeight:1.55,marginBottom:8}}>{cur.explain}</div>
+                        <div className="source-cite"><Ico n="book" /> {cur.source}</div>
+                        <div style={{fontSize:10,color:'var(--accent)',marginTop:8,cursor:'pointer',fontWeight:500}}>定位到原文位置 ↑</div>
+                    </div>
+                )}
+            </div>
+            <div style={{display:'flex',gap:8,flexShrink:0,marginTop:'auto'}}>
+                {!submitted ? (
+                    <button className="btn btn-primary btn-block" onClick={()=>{if(selected)setSubmitted(true)}} disabled={!selected}><Ico n="check" /> 检查答案</button>
+                ) : isLast ? (
+                    <button className="btn btn-secondary btn-block" style={{color:'var(--accent)'}}><Ico n="download" /> 导出学习报告</button>
+                ) : (
+                    <button className="btn btn-primary btn-block" onClick={()=>{setSelected(null);setSubmitted(false);setQIdx(qIdx+1)}}>下一题 →</button>
+                )}
+                <ExportBtn />
+            </div>
+        </div>
+    );
+};
+
+const ExportBtn = () => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+        const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        if (open) document.addEventListener('click', h);
+        return () => document.removeEventListener('click', h);
+    }, [open]);
+    return (
+        <div style={{position:'relative'}} ref={ref}>
+            <button className="btn btn-secondary" style={{padding:'10px 12px'}} onClick={()=>setOpen(!open)}><Ico n="download" /></button>
+            {open && (
+                <div className="export-menu fade-in">
+                    <div className="export-menu-item">📄 导出 PDF</div>
+                    <div className="export-menu-item">📝 导出 Markdown</div>
+                    <div className="export-menu-item">📋 复制到剪贴板</div>
+                    <div style={{borderTop:'1px solid var(--border)',margin:'4px 0'}}/>
+                    <div className="export-menu-item">🔗 同步到 Notion</div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const HistorySettingsView = () => {
+    const [tab, setTab] = useState('history');
+    const items = [
+        { title:'RAG 架构深度解析：从文档切分、向量检索到答案生成', url:'tech.blog/posts/rag...', time:'5 分钟前', versions:3, latest:true },
+        { title:'MCP 协议入门教程', url:'modelcontextprotocol.io/...', time:'昨天 14:20', versions:1, latest:false },
+        { title:'RAG 架构深度解析：从文档切分、向量检索到答案生成', url:'tech.blog/posts/rag...', time:'3 天前', versions:2, latest:false },
+    ];
+    return (
+        <div className="sb-body fade-in">
+            <div style={{display:'flex',gap:4,background:'oklch(96% 0.003 240)',borderRadius:'var(--radius-md)',padding:3}}>
+                <div onClick={()=>setTab('history')} style={{flex:1,textAlign:'center',padding:'7px 0',fontSize:12,fontWeight:500,borderRadius:5,cursor:'pointer',...(tab==='history'?{background:'var(--surface)',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',color:'var(--fg)'}:{color:'var(--muted)'})}}>学习历史</div>
+                <div onClick={()=>setTab('settings')} style={{flex:1,textAlign:'center',padding:'7px 0',fontSize:12,fontWeight:500,borderRadius:5,cursor:'pointer',...(tab==='settings'?{background:'var(--surface)',boxShadow:'0 1px 3px rgba(0,0,0,0.05)',color:'var(--fg)'}:{color:'var(--muted)'})}}>配置设置</div>
+            </div>
+            {tab === 'history' ? (
+                <div className="card" style={{padding:0,overflow:'hidden'}}>
+                    {items.map((item,i) => (
+                        <div key={i} className="hist-item">
+                            <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontSize:12,fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:2}}>{item.title}</div>
+                                <div style={{fontSize:10,color:'var(--faint)',display:'flex',gap:8}}><span>{item.time}</span><span>{item.url}</span></div>
+                            </div>
+                            <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0}}>
+                                {item.latest && <span className="hist-badge latest">最新</span>}
+                                <span style={{fontSize:10,color:'var(--faint)'}}>v{item.versions}</span>
+                                <span style={{fontSize:11,color:'var(--accent)',fontWeight:500,cursor:'pointer'}}>打开</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="card">
+                    <div className="form-group"><label className="form-label">LLM Provider</label><select className="form-select" defaultValue="openai"><option value="openai">OpenAI (Custom Endpoint)</option><option value="anthropic">Anthropic</option><option value="ollama">Local (Ollama)</option></select></div>
+                    <div className="form-group"><label className="form-label">Base URL</label><input className="form-input" defaultValue="https://api.openai.com/v1"/></div>
+                    <div className="form-group"><label className="form-label">API Key</label><input className="form-input" type="password" placeholder="sk-••••••••••••••••"/></div>
+                    <div className="form-row">
+                        <div className="form-group"><label className="form-label">模型</label><input className="form-input" defaultValue="gpt-4o"/></div>
+                        <div className="form-group"><label className="form-label">输出语言</label><input className="form-input" defaultValue="中文"/></div>
+                    </div>
+                    <button className="btn btn-primary btn-block" style={{marginTop:4}}>保存配置</button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const LoadingScreen = () => (
+    <div className="sb-body" style={{alignItems:'center',justifyContent:'center'}}>
+        <div className="loading-spin"/>
+        <div style={{fontSize:13,color:'var(--muted)',textAlign:'center'}}>正在通过 AI 深度解析网页结构...</div>
+        <div style={{fontSize:11,color:'var(--faint)',marginTop:4}}>提取文章大纲 · 识别核心概念 · 生成自测题</div>
+    </div>
+);
+
+const App = () => {
+    const [activeTab, setActiveTab] = useState('entry');
+    const [isLoading, setIsLoading] = useState(false);
+    const [mapGenerated, setMapGenerated] = useState(false);
+
+    const handleGenerate = () => {
+        setIsLoading(true);
+        setTimeout(() => { setIsLoading(false); setMapGenerated(true); setActiveTab('map'); }, 1800);
+    };
+
+    const tabDefs = [
+        { id:'entry', label:'学习入口', step:'1' },
+        { id:'map', label:'学习地图', step:'2', locked:!mapGenerated },
+        { id:'training', label:'开始训练', step:'3', locked:!mapGenerated },
+        { id:'history', label:'历史/设置', step:null },
+    ];
+
+    return (
+        <div id="viewport">
+            <header className="browser-chrome">
+                <div className="traffic-lights"><span/><span/><span/></div>
+                <div className="address-bar"><span className="lock">🔒</span> tech.blog/posts/rag-deep-dive-2024</div>
+                <div className="ext-badge"><Ico n="zap"/> WebLearnBoost</div>
+            </header>
+            <main>
+                <div className="web-page">
+                    <div className="site-nav">
+                        <span className="site-logo">TechBlog</span>
+                        <a href="#">文章</a><a href="#">系列</a><a href="#">关于</a><a href="#">RSS</a>
+                    </div>
+                    <div className="page-content">
+                        <div className="eyebrow">AI Engineering</div>
+                        <h1>RAG 架构深度解析：从文档切分、向量检索到答案生成</h1>
+                        <div className="byline"><span>2024年5月11日</span><span>·</span><span>阅读时间: 12 分钟</span><span>·</span><span>作者: TechExplorer</span></div>
+                        <p>检索增强生成 (<span className="hl">Retrieval-Augmented Generation, RAG</span>) 已经成为解决大语言模型 (LLM) "幻觉"问题、处理私有知识库的最有效手段。不像传统的 Fine-tuning 需要昂贵的训练成本，RAG 通过在运行时动态检索相关文档并将其作为"背景知识"注入 Prompt。</p>
+                        <h2>1. 文档切分 (Document Chunking)</h2>
+                        <p>原始文档通常过长，无法直接放入模型的上下文窗口 (Context Window)。因此，第一步是将其切分为更小的 <span className="hl">Chunks</span>。</p>
+                        <div className="code-block">{`# 使用 RecursiveCharacterTextSplitter 进行切分
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size = 500,
+    chunk_overlap = 50,
+    separators = ["\\n\\n", "\\n", " ", ""]
+)`}</div>
+                        <p>理想的切分不仅要考虑字数，还要考虑语义完整性。通常我们会设置一部分 <span className="hl">Overlap (重叠)</span>，以确保语义不会在切分点断裂。</p>
+                        <h2>2. 向量检索 (Vector Retrieval)</h2>
+                        <p>在 RAG 的检索阶段，我们使用向量相似度计算。然而，单纯的向量检索在处理特定的术语（如产品型号、内部 ID）时表现欠佳。</p>
+                        <p>为了解决这个问题，现代架构引入了混合搜索 (Hybrid Search)，即结合了语义向量检索和传统的关键字检索 (BM25)。</p>
+                        <div className="code-block dark">{`// 混合检索逻辑伪代码
+const results = await vectorStore.similaritySearch(query, {
+  alpha: 0.5, // 向量与关键字的权重比例
+  topK: 5
+});`}</div>
+                        <h2>3. 增强生成 (Generation)</h2>
+                        <p>最后一步是将检索到的 Chunk 拼接到 Prompt 中。</p>
+                        <div className="pull">"你是一个专业的助手。请根据以下参考资料回答问题：[CONTEXT]... 问题：[QUERY]"</div>
+                    </div>
+                </div>
+                <div className="sidebar">
+                    <div className="sidebar-top">
+                        <div className="sidebar-brand">
+                            <div className="sb-logo">W</div>
+                            <span className="sb-name">WebLearnBoost</span>
+                            <span className="sb-subtitle">v1.2</span>
+                            <div style={{marginLeft:'auto',color:'var(--faint)',cursor:'pointer'}}><Ico n="gear"/></div>
+                        </div>
+                        <div className="sb-tabs">
+                            {tabDefs.map(tab => (
+                                <div key={tab.id}
+                                    className={`sb-tab ${activeTab===tab.id?'active':''} ${tab.locked && activeTab!==tab.id?'locked':''} ${tab.step && mapGenerated && tab.id==='entry'?'done':''}`}
+                                    onClick={()=>{if(tab.locked)return;setActiveTab(tab.id);}}>
+                                    {tab.step ? (<span className="step-num">{tab.locked ? <Ico n="lock"/> : tab.step}</span>) : null}
+                                    {tab.label}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    {isLoading ? <LoadingScreen/> : (<>
+                        {activeTab==='entry' && <EntryView onGenerate={handleGenerate}/>}
+                        {activeTab==='map' && <MapView onStartTraining={()=>setActiveTab('training')}/>}
+                        {activeTab==='training' && <TrainingView/>}
+                        {activeTab==='history' && <HistorySettingsView/>}
+                    </>)}
+                    <div className="sb-status"><span><span className="dot"/> 状态：就绪</span><span>Demo 模式</span></div>
+                </div>
+            </main>
+        </div>
+    );
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
