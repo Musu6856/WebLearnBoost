@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "WebLearnBoost",
+  "description": "把网页资料转成学习地图、训练题和可导出的学习包。",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "WebLearnBoost"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "permissions": ["activeTab", "scripting", "storage", "sidePanel", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
