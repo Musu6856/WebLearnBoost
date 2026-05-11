@@ -1,4 +1,4 @@
-import { Download, ExternalLink, PlayCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, ExternalLink, PlayCircle } from "lucide-react";
 import { useState } from "react";
 import type { LearningMap, LearningPackage } from "../../shared/types";
 
@@ -20,8 +20,11 @@ export function TrainingView({
   onStartTraining
 }: TrainingViewProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const firstQuestion = learningPackage?.quiz[0];
-  const selectedAnswer = firstQuestion ? answers[firstQuestion.id] : undefined;
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const questions = learningPackage?.quiz ?? [];
+  const currentQuestionIndex = Math.min(questionIndex, Math.max(questions.length - 1, 0));
+  const currentQuestion = questions[currentQuestionIndex];
+  const selectedAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
 
   if (!learningPackage) {
     return (
@@ -52,19 +55,22 @@ export function TrainingView({
         </div>
       </article>
 
-      {firstQuestion && (
+      {currentQuestion && (
         <article className="card quiz-card">
-          <span className="eyebrow">自测 1/{learningPackage.quiz.length}</span>
-          <h2>{firstQuestion.question}</h2>
-          {firstQuestion.options.map((option) => {
+          <div className="quiz-header">
+            <span className="eyebrow">自测 {currentQuestionIndex + 1}/{questions.length}</span>
+            <span>{answeredCount(answers, questions)} 已答</span>
+          </div>
+          <h2>{currentQuestion.question}</h2>
+          {currentQuestion.options.map((option) => {
             const isSelected = selectedAnswer === option.id;
-            const isCorrect = selectedAnswer && option.id === firstQuestion.correctOptionId;
+            const isCorrect = selectedAnswer && option.id === currentQuestion.correctOptionId;
             return (
               <button
                 className={`option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""}`}
                 key={option.id}
                 type="button"
-                onClick={() => setAnswers((current) => ({ ...current, [firstQuestion.id]: option.id }))}
+                onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: option.id }))}
               >
                 {option.text}
               </button>
@@ -72,10 +78,28 @@ export function TrainingView({
           })}
           {selectedAnswer && (
             <div className="answer-panel">
-              <strong>{selectedAnswer === firstQuestion.correctOptionId ? "回答正确" : "再看一次原文依据"}</strong>
-              <p>{firstQuestion.explanation}</p>
+              <strong>{selectedAnswer === currentQuestion.correctOptionId ? "回答正确" : "再看一次原文依据"}</strong>
+              <p>{currentQuestion.explanation}</p>
             </div>
           )}
+          <div className="quiz-nav">
+            <button
+              className="secondary"
+              type="button"
+              onClick={() => setQuestionIndex((current) => Math.max(0, current - 1))}
+              disabled={currentQuestionIndex === 0}
+            >
+              <ChevronLeft size={16} />上一题
+            </button>
+            <button
+              className="secondary"
+              type="button"
+              onClick={() => setQuestionIndex((current) => Math.min(questions.length - 1, current + 1))}
+              disabled={currentQuestionIndex >= questions.length - 1}
+            >
+              下一题<ChevronRight size={16} />
+            </button>
+          </div>
         </article>
       )}
 
@@ -96,4 +120,8 @@ export function TrainingView({
       </button>
     </section>
   );
+}
+
+function answeredCount(answers: Record<string, string>, questions: LearningPackage["quiz"]) {
+  return questions.filter((question) => Boolean(answers[question.id])).length;
 }

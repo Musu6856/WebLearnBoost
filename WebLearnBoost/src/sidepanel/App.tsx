@@ -124,6 +124,16 @@ export function App() {
   };
 
   const handleGenerateMap = async () => {
+    if (state.activePackage) {
+      setState((current) => ({ ...current, status: "training", view: "training", error: null }));
+      return;
+    }
+
+    if (state.learningMap) {
+      setState((current) => ({ ...current, status: "awaiting-training", view: "map", error: null }));
+      return;
+    }
+
     setState((current) => ({ ...current, status: "extracting", error: null }));
 
     const extractResult = await extractActiveContent(state.scope);
@@ -154,6 +164,11 @@ export function App() {
   };
 
   const handleStartTraining = async () => {
+    if (state.activePackage) {
+      setState((current) => ({ ...current, status: "training", view: "training", error: null }));
+      return;
+    }
+
     if (!state.extractedContent || !state.learningMap) {
       setState((current) => ({
         ...current,
@@ -324,9 +339,12 @@ export function App() {
           <EntryView
             content={state.extractedContent}
             hasApiKey={hasApiKey}
+            hasLearningMap={hasMap}
+            hasTraining={hasTraining}
             isBusy={isBusy}
             scope={state.scope}
             status={state.status}
+            onContinue={() => switchView(hasTraining ? "training" : "map")}
             onGenerateMap={handleGenerateMap}
             onOpenSettings={() => switchView("settings")}
             onScopeChange={updateScope}
@@ -336,6 +354,7 @@ export function App() {
         {state.view === "map" && state.learningMap && (
           <LearningMapView
             canStartTraining={!isBusy}
+            hasTraining={hasTraining}
             learningMap={state.learningMap}
             sourceTitle={state.extractedContent?.title ?? state.activePackage?.title}
             onStartTraining={handleStartTraining}

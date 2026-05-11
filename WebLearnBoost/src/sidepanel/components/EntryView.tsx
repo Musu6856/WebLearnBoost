@@ -1,10 +1,13 @@
-import { FileText, KeyRound, MousePointer2, Sparkles } from "lucide-react";
+import { ArrowRight, FileText, KeyRound, MousePointer2, Sparkles } from "lucide-react";
 import type { AsyncStatus, ExtractedPageContent, InputScope } from "../../shared/types";
 
 interface EntryViewProps {
   content: ExtractedPageContent | null;
   hasApiKey: boolean;
+  hasLearningMap: boolean;
+  hasTraining: boolean;
   isBusy: boolean;
+  onContinue: () => void;
   onGenerateMap: () => void;
   onOpenSettings: () => void;
   onScopeChange: (scope: InputScope) => void;
@@ -15,7 +18,10 @@ interface EntryViewProps {
 export function EntryView({
   content,
   hasApiKey,
+  hasLearningMap,
+  hasTraining,
   isBusy,
+  onContinue,
   onGenerateMap,
   onOpenSettings,
   onScopeChange,
@@ -65,9 +71,22 @@ export function EntryView({
         ))}
       </div>
 
-      <button className="primary" type="button" onClick={onGenerateMap} disabled={isBusy}>
-        <Sparkles size={18} />{status === "extracting" || status === "generating-map" ? "正在生成" : "生成学习地图"}
+      <button
+        className="primary"
+        type="button"
+        onClick={hasLearningMap ? onContinue : onGenerateMap}
+        disabled={isBusy}
+      >
+        {hasLearningMap ? <ArrowRight size={18} /> : <Sparkles size={18} />}
+        {getActionLabel(status, hasLearningMap, hasTraining)}
       </button>
     </section>
   );
+}
+
+function getActionLabel(status: AsyncStatus, hasLearningMap: boolean, hasTraining: boolean) {
+  if (status === "extracting" || status === "generating-map") return "正在生成";
+  if (hasTraining) return "继续训练";
+  if (hasLearningMap) return "查看学习地图";
+  return "生成学习地图";
 }

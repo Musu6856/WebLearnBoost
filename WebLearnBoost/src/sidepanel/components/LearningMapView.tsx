@@ -4,12 +4,13 @@ import type { LearningMap } from "../../shared/types";
 
 interface LearningMapViewProps {
   canStartTraining: boolean;
+  hasTraining: boolean;
   learningMap: LearningMap;
   onStartTraining: () => void;
   sourceTitle?: string;
 }
 
-export function LearningMapView({ canStartTraining, learningMap, onStartTraining, sourceTitle }: LearningMapViewProps) {
+export function LearningMapView({ canStartTraining, hasTraining, learningMap, onStartTraining, sourceTitle }: LearningMapViewProps) {
   return (
     <section className="stack">
       <article className="card accent">
@@ -46,7 +47,7 @@ export function LearningMapView({ canStartTraining, learningMap, onStartTraining
       </article>
 
       <button className="primary" type="button" onClick={onStartTraining} disabled={!canStartTraining}>
-        <BookOpen size={18} />开始训练
+        <BookOpen size={18} />{hasTraining ? "继续训练" : "开始训练"}
       </button>
     </section>
   );
