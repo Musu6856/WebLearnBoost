@@ -2,6 +2,17 @@
 
 WebLearnBoost 是一个浏览器扩展试用版，用于把当前网页或选中文本转成学习地图、训练题、本地历史记录和可导出的 Markdown 学习包。
 
+## 下载试用版
+
+如果你只是想试用发布包：
+
+1. 到 GitHub Release 下载 `WebLearnBoost-v0.1.0.zip`。
+2. 解压 zip。
+3. 在 Chrome 或 Edge 的扩展管理页开启开发者模式。
+4. 选择“加载已解压的扩展程序”，加载解压后的文件夹。
+
+详细步骤见 [INSTALL_FOR_TESTERS.md](INSTALL_FOR_TESTERS.md)。隐私和数据处理说明见 [PRIVACY.md](PRIVACY.md)。
+
 ## 本地安装
 
 环境要求：
@@ -31,6 +42,14 @@ npm run build
 npm run typecheck
 npm test
 ```
+
+生成可上传到 GitHub Release 的试用包：
+
+```powershell
+npm run package
+```
+
+打包完成后，zip 位于 `release/WebLearnBoost-v0.1.0.zip`。
 
 ## 加载扩展
 
