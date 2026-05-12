@@ -1,4 +1,4 @@
-import { BookOpen, GitBranch, ListChecks, Route, TriangleAlert } from "lucide-react";
+import { BookOpen, GitBranch, Route, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import type { LearningMap } from "../../shared/types";
 
@@ -17,6 +17,11 @@ export function LearningMapView({ canStartTraining, hasTraining, learningMap, on
         <span className="eyebrow">这篇资料在讲什么</span>
         <h1>{sourceTitle ?? "学习地图"}</h1>
         <p>{learningMap.overview}</p>
+      </article>
+
+      <article className="card">
+        <span className="eyebrow">前置知识</span>
+        <div className="chips">{learningMap.prerequisites.map((item) => <span key={item}>{item}</span>)}</div>
       </article>
 
       <article className="card">
@@ -43,7 +48,6 @@ export function LearningMapView({ canStartTraining, hasTraining, learningMap, on
         <MapBlock icon={<GitBranch size={16} />} title="概念关系" items={learningMap.conceptRelations} />
         <MapBlock icon={<Route size={16} />} title="阅读顺序" items={learningMap.readingOrder} />
         <MapBlock icon={<TriangleAlert size={16} />} title="易错点" items={learningMap.pitfalls} />
-        <MapBlock icon={<ListChecks size={16} />} title="前置知识" items={learningMap.prerequisites} />
       </article>
 
       <button className="primary" type="button" onClick={onStartTraining} disabled={!canStartTraining}>

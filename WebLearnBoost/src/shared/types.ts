@@ -2,6 +2,8 @@ export type InputScope = "page" | "selection";
 
 export type ViewName = "entry" | "map" | "training" | "history" | "settings";
 
+export type ModelProvider = "openai-compatible" | "anthropic-compatible";
+
 export type AsyncStatus =
   | "idle"
   | "extracting"
@@ -14,7 +16,7 @@ export type AsyncStatus =
   | "failed";
 
 export interface AppSettings {
-  provider: "openai-compatible" | "anthropic" | "ollama";
+  provider: ModelProvider;
   baseUrl: string;
   apiKey: string;
   model: string;

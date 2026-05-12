@@ -20,11 +20,24 @@ import type {
   RuntimeResponse,
   UserFacingError
 } from "../shared/types";
+import { isSamePageUrl } from "./pageContext";
 
 const extensionUnavailableError: UserFacingError = {
   title: "扩展运行环境不可用",
   message: "当前页面没有检测到 Chrome 扩展 API。",
   recoveryAction: "请在 Chrome / Edge 扩展侧边栏中打开 WebLearnBoost。"
+};
+
+const pageConnectionError: UserFacingError = {
+  title: "页面连接失败",
+  message: "无法连接到当前网页的内容脚本，可能是浏览器内部页、扩展商店页，或页面尚未刷新。",
+  recoveryAction: "请刷新普通网页后重试；如果仍失败，请选中正文段落后再试。"
+};
+
+const emptyPageResponseError: UserFacingError = {
+  title: "页面没有返回内容",
+  message: "当前网页没有返回可用于学习包生成的正文。",
+  recoveryAction: "请选中正文段落后重试。"
 };
 
 export async function loadInitialSettings(): Promise<AppSettings> {
@@ -44,6 +57,22 @@ export async function loadInitialSettings(): Promise<AppSettings> {
 export async function loadHistory(): Promise<LearningPackage[]> {
   if (!hasChromeStorage()) return [];
   return listLearningPackages();
+}
+
+export async function getActivePageInfo(): Promise<{ title: string; url: string } | null> {
+  if (!hasChromeTabs()) return null;
+
+  try {
+    const tab = await getActiveTab();
+    if (!tab?.url) return null;
+
+    return {
+      title: tab.title?.trim() || tab.url,
+      url: tab.url
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function saveSettings(settings: AppSettings): Promise<RuntimeResponse<AppSettings>> {
@@ -80,7 +109,7 @@ export async function extractActiveContent(scope: InputScope): Promise<RuntimeRe
   }
 
   const request: RuntimeRequest = { type: "GET_ACTIVE_TAB_CONTENT", scope };
-  return sendTabMessage<ExtractedPageContent>(tab.id, request);
+  return sendTabMessage<ExtractedPageContent>(tab, request);
 }
 
 export async function generateLearningMap(
@@ -164,10 +193,10 @@ export async function exportMarkdown(learningPackage: LearningPackage): Promise<
   }
 }
 
-export async function locateSourceQuote(quote: string): Promise<RuntimeResponse<true>> {
+export async function locateSourceQuote(quote: string, pageUrl?: string): Promise<RuntimeResponse<true>> {
   if (!hasChromeTabs()) return { ok: false, error: extensionUnavailableError };
 
-  const tab = await getActiveTab();
+  const tab = pageUrl ? await getTabForPageUrl(pageUrl) : await getActiveTab();
   if (!tab?.id) {
     return {
       ok: false,
@@ -179,7 +208,7 @@ export async function locateSourceQuote(quote: string): Promise<RuntimeResponse<
     };
   }
 
-  return sendTabMessage<true>(tab.id, { type: "LOCATE_SOURCE_QUOTE", quote });
+  return sendTabMessage<true>(tab, { type: "LOCATE_SOURCE_QUOTE", quote });
 }
 
 function hasChromeStorage() {
@@ -188,6 +217,10 @@ function hasChromeStorage() {
 
 function hasChromeTabs() {
   return typeof chrome !== "undefined" && Boolean(chrome.tabs);
+}
+
+function hasChromeScripting() {
+  return typeof chrome !== "undefined" && Boolean(chrome.scripting?.executeScript);
 }
 
 function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
@@ -204,35 +237,169 @@ function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   });
 }
 
-function sendTabMessage<T>(tabId: number, request: RuntimeRequest): Promise<RuntimeResponse<T>> {
+async function getTabForPageUrl(pageUrl: string): Promise<chrome.tabs.Tab | undefined> {
+  if (!isInjectableTabUrl(pageUrl)) return undefined;
+
+  const activeTab = await getActiveTab();
+  if (activeTab?.id && isSamePageUrl(activeTab.url, pageUrl)) {
+    return activeTab;
+  }
+
+  const currentWindowTabs = await getCurrentWindowTabs();
+  const matchingTab = currentWindowTabs.find((tab) => typeof tab.id === "number" && isSamePageUrl(tab.url, pageUrl));
+  if (typeof matchingTab?.id === "number") {
+    return activateTab(matchingTab.id);
+  }
+
+  const createdTab = await createTab(pageUrl);
+  if (typeof createdTab?.id === "number") {
+    await waitForTabComplete(createdTab.id);
+  }
+
+  return createdTab;
+}
+
+function getCurrentWindowTabs(): Promise<chrome.tabs.Tab[]> {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.query({ currentWindow: true }, (tabs) => {
+      const error = chrome.runtime.lastError?.message;
+      if (error) {
+        reject(new Error(error));
+        return;
+      }
+
+      resolve(tabs);
+    });
+  });
+}
+
+function activateTab(tabId: number): Promise<chrome.tabs.Tab | undefined> {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.update(tabId, { active: true }, (tab) => {
+      const error = chrome.runtime.lastError?.message;
+      if (error) {
+        reject(new Error(error));
+        return;
+      }
+
+      resolve(tab);
+    });
+  });
+}
+
+function createTab(url: string): Promise<chrome.tabs.Tab | undefined> {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.create({ url, active: true }, (tab) => {
+      const error = chrome.runtime.lastError?.message;
+      if (error) {
+        reject(new Error(error));
+        return;
+      }
+
+      resolve(tab);
+    });
+  });
+}
+
+function waitForTabComplete(tabId: number, timeoutMs = 10000): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    let timeoutId: number | undefined;
+    const listener = (updatedTabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+      if (updatedTabId === tabId && changeInfo.status === "complete") {
+        finish();
+      }
+    };
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    };
+
+    chrome.tabs.onUpdated.addListener(listener);
+    timeoutId = window.setTimeout(finish, timeoutMs);
+
+    chrome.tabs.get(tabId, (tab) => {
+      if (!chrome.runtime.lastError?.message && tab?.status === "complete") {
+        finish();
+      }
+    });
+  });
+}
+
+type TabMessageAttempt<T> =
+  | { status: "success"; response: RuntimeResponse<T> }
+  | { status: "empty" }
+  | { status: "send-error"; message: string };
+
+type MessageTargetTab = Pick<chrome.tabs.Tab, "id" | "url">;
+
+async function sendTabMessage<T>(tab: MessageTargetTab, request: RuntimeRequest): Promise<RuntimeResponse<T>> {
+  if (typeof tab.id !== "number") {
+    return { ok: false, error: pageConnectionError };
+  }
+
+  const firstAttempt = await sendTabMessageOnce<T>(tab.id, request);
+  if (firstAttempt.status !== "send-error" || !isMissingContentScriptError(firstAttempt.message)) {
+    return toRuntimeResponse(firstAttempt);
+  }
+
+  if (!isInjectableTabUrl(tab.url) || !(await injectContentScript(tab.id))) {
+    return { ok: false, error: pageConnectionError };
+  }
+
+  return toRuntimeResponse(await sendTabMessageOnce<T>(tab.id, request));
+}
+
+function sendTabMessageOnce<T>(tabId: number, request: RuntimeRequest): Promise<TabMessageAttempt<T>> {
   return new Promise((resolve) => {
     chrome.tabs.sendMessage(tabId, request, (response: RuntimeResponse<T> | undefined) => {
       const error = chrome.runtime.lastError?.message;
       if (error) {
-        resolve({
-          ok: false,
-          error: {
-            title: "页面连接失败",
-            message: "无法连接到当前网页的内容脚本，可能是浏览器内部页、扩展商店页，或页面尚未刷新。",
-            recoveryAction: "请刷新普通网页后重试；如果仍失败，请选中正文段落后再试。"
-          }
-        });
+        resolve({ status: "send-error", message: error });
         return;
       }
 
       if (!response) {
-        resolve({
-          ok: false,
-          error: {
-            title: "页面没有返回内容",
-            message: "当前网页没有返回可用于学习包生成的正文。",
-            recoveryAction: "请选中正文段落后重试。"
-          }
-        });
+        resolve({ status: "empty" });
         return;
       }
 
-      resolve(response);
+      resolve({ status: "success", response });
     });
   });
+}
+
+function injectContentScript(tabId: number): Promise<boolean> {
+  if (!hasChromeScripting()) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] }, () => {
+      resolve(!chrome.runtime.lastError?.message);
+    });
+  });
+}
+
+function toRuntimeResponse<T>(attempt: TabMessageAttempt<T>): RuntimeResponse<T> {
+  if (attempt.status === "success") return attempt.response;
+  if (attempt.status === "empty") return { ok: false, error: emptyPageResponseError };
+  return { ok: false, error: pageConnectionError };
+}
+
+function isMissingContentScriptError(message: string) {
+  return message.includes("Could not establish connection") || message.includes("Receiving end does not exist");
+}
+
+function isInjectableTabUrl(url: string | undefined) {
+  if (!url) return false;
+
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
 }

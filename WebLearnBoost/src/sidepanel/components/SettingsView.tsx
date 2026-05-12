@@ -7,11 +7,31 @@ interface SettingsViewProps {
   settings: AppSettings;
 }
 
-export function SettingsView({ onSave, settings }: SettingsViewProps) {
-  const [draft, setDraft] = useState<AppSettings>(settings);
+const supportedProviders = ["openai-compatible", "anthropic-compatible"] as const;
+type SupportedProvider = (typeof supportedProviders)[number];
+type DraftSettings = Omit<AppSettings, "provider"> & { provider: SupportedProvider };
+type TextSettingsField = Exclude<keyof AppSettings, "provider">;
 
-  const updateDraft = (field: keyof AppSettings, value: string) => {
+function isSupportedProvider(value: string): value is SupportedProvider {
+  return supportedProviders.includes(value as SupportedProvider);
+}
+
+export function SettingsView({ onSave, settings }: SettingsViewProps) {
+  const [draft, setDraft] = useState<DraftSettings>({
+    ...settings,
+    provider: isSupportedProvider(settings.provider) ? settings.provider : "openai-compatible"
+  });
+
+  const updateDraft = (field: TextSettingsField, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateProvider = (value: string) => {
+    if (!isSupportedProvider(value)) {
+      return;
+    }
+
+    setDraft((current) => ({ ...current, provider: value }));
   };
 
   return (
@@ -19,17 +39,16 @@ export function SettingsView({ onSave, settings }: SettingsViewProps) {
       className="stack"
       onSubmit={(event) => {
         event.preventDefault();
-        onSave(draft);
+        onSave(draft as AppSettings);
       }}
     >
       <article className="card">
-        <span className="eyebrow">模型设置</span>
+        <span className="eyebrow">妯″瀷璁剧疆</span>
         <label>
           Provider
-          <select value={draft.provider} onChange={(event) => updateDraft("provider", event.target.value)}>
+          <select value={draft.provider} onChange={(event) => updateProvider(event.target.value)}>
             <option value="openai-compatible">OpenAI Compatible</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="ollama">Ollama</option>
+            <option value="anthropic-compatible">Anthropic Compatible</option>
           </select>
         </label>
         <label>
@@ -45,12 +64,12 @@ export function SettingsView({ onSave, settings }: SettingsViewProps) {
           <input value={draft.model} onChange={(event) => updateDraft("model", event.target.value)} placeholder="gpt-4o-mini" />
         </label>
         <label>
-          输出语言
-          <input value={draft.outputLanguage} onChange={(event) => updateDraft("outputLanguage", event.target.value)} placeholder="中文" />
+          杈撳嚭璇█
+          <input value={draft.outputLanguage} onChange={(event) => updateDraft("outputLanguage", event.target.value)} placeholder="涓枃" />
         </label>
       </article>
       <button className="primary" type="submit">
-        <Save size={18} />保存配置
+        <Save size={18} />淇濆瓨閰嶇疆
       </button>
     </form>
   );

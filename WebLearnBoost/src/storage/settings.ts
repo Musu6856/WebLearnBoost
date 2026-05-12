@@ -1,4 +1,4 @@
-import type { AppSettings } from "../shared/types";
+import type { AppSettings, ModelProvider } from "../shared/types";
 
 const SETTINGS_KEY = "weblearnboost:settings";
 
@@ -9,6 +9,28 @@ export const defaultSettings: AppSettings = {
   model: "gpt-4o-mini",
   outputLanguage: "中文",
 };
+
+const supportedProviders = new Set<ModelProvider>(["openai-compatible", "anthropic-compatible"]);
+
+function normalizeProvider(provider: unknown): ModelProvider {
+  if (provider === "anthropic") {
+    return "anthropic-compatible";
+  }
+
+  if (typeof provider === "string" && supportedProviders.has(provider as ModelProvider)) {
+    return provider as ModelProvider;
+  }
+
+  return defaultSettings.provider;
+}
+
+function normalizeSettings(saved?: Partial<AppSettings>): AppSettings {
+  return {
+    ...defaultSettings,
+    ...saved,
+    provider: normalizeProvider(saved?.provider)
+  };
+}
 
 function rejectLastError(): Error | undefined {
   const message = chrome.runtime.lastError?.message;
@@ -59,16 +81,17 @@ function storageRemove(key: string): Promise<void> {
 
 export async function getSettings(): Promise<AppSettings> {
   const saved = await storageGet<Partial<AppSettings>>(SETTINGS_KEY);
-  return { ...defaultSettings, ...saved };
+  return normalizeSettings(saved);
 }
 
 export async function saveSettings(settings: AppSettings): Promise<AppSettings> {
-  await storageSet(SETTINGS_KEY, settings);
-  return settings;
+  const normalized = normalizeSettings(settings);
+  await storageSet(SETTINGS_KEY, normalized);
+  return normalized;
 }
 
 export async function updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
-  const next = { ...(await getSettings()), ...patch };
+  const next = normalizeSettings({ ...(await getSettings()), ...patch });
   await storageSet(SETTINGS_KEY, next);
   return next;
 }

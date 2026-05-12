@@ -25,6 +25,16 @@ type ChatCompletionResponse = {
   };
 };
 
+type AnthropicMessagesResponse = {
+  content?: Array<{
+    type?: string;
+    text?: string;
+  }>;
+  error?: {
+    message?: string;
+  };
+};
+
 type TrainingContent = {
   summary: SummaryItem[];
   quiz: QuizQuestion[];
@@ -34,11 +44,14 @@ type TrainingContent = {
 const JSON_INSTRUCTIONS =
   "Return only valid JSON. Do not include markdown, comments, or explanatory prose.";
 
+const ANTHROPIC_VERSION = "2023-06-01";
+const ANTHROPIC_MAX_TOKENS = 3000;
+
 export async function generateLearningMap(
   settings: AppSettings,
   pageContent: ExtractedPageContent
 ): Promise<RuntimeResponse<LearningMap>> {
-  const settingsError = validateOpenAISettings(settings);
+  const settingsError = validateModelSettings(settings);
   if (settingsError) return { ok: false, error: settingsError };
 
   try {
@@ -83,7 +96,7 @@ export async function generateTrainingContent(
   pageContent: ExtractedPageContent,
   learningMap: LearningMap
 ): Promise<RuntimeResponse<LearningPackage>> {
-  const settingsError = validateOpenAISettings(settings);
+  const settingsError = validateModelSettings(settings);
   if (settingsError) return { ok: false, error: settingsError };
 
   try {
@@ -183,28 +196,20 @@ export function createDemoTrainingContent(
   });
 }
 
-function validateOpenAISettings(settings: AppSettings): UserFacingError | null {
-  if (settings.provider !== "openai-compatible") {
-    return {
-      title: "暂不支持的模型提供方",
-      message: "当前 AI 封装只实现了 OpenAI-compatible chat completions。",
-      recoveryAction: "请在设置中选择 OpenAI-compatible。"
-    };
-  }
-
+function validateModelSettings(settings: AppSettings): UserFacingError | null {
   if (!settings.apiKey.trim()) {
     return {
       title: "缺少 API Key",
       message: "生成学习内容需要先配置 API Key。",
-      recoveryAction: "请打开设置，填写 OpenAI-compatible 服务的 API Key 后重试。"
+      recoveryAction: "请打开设置，填写当前模型服务的 API Key 后重试。"
     };
   }
 
   if (!settings.baseUrl.trim()) {
     return {
       title: "缺少 Base URL",
-      message: "需要配置 OpenAI-compatible 服务的 Base URL。",
-      recoveryAction: "例如 https://api.openai.com/v1，或你的兼容服务地址。"
+      message: "需要配置模型兼容服务的 Base URL。",
+      recoveryAction: "请填写你要使用的 OpenAI Compatible 或 Anthropic Compatible 服务地址。"
     };
   }
 
@@ -220,7 +225,15 @@ function validateOpenAISettings(settings: AppSettings): UserFacingError | null {
 }
 
 async function requestStructuredJson(settings: AppSettings, messages: ChatMessage[]): Promise<string> {
-  const endpoint = `${settings.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+  if (settings.provider === "anthropic-compatible") {
+    return requestAnthropicCompatibleJson(settings, messages);
+  }
+
+  return requestOpenAICompatibleJson(settings, messages);
+}
+
+async function requestOpenAICompatibleJson(settings: AppSettings, messages: ChatMessage[]): Promise<string> {
+  const endpoint = buildOpenAICompatibleEndpoint(settings.baseUrl);
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -247,6 +260,75 @@ async function requestStructuredJson(settings: AppSettings, messages: ChatMessag
   }
 
   return content;
+}
+
+async function requestAnthropicCompatibleJson(settings: AppSettings, messages: ChatMessage[]): Promise<string> {
+  const endpoint = buildAnthropicCompatibleEndpoint(settings.baseUrl);
+  const system = messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
+  const chatMessages = messages
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role,
+      content: message.content
+    }));
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": settings.apiKey,
+      "anthropic-version": ANTHROPIC_VERSION
+    },
+    body: JSON.stringify({
+      model: settings.model,
+      max_tokens: ANTHROPIC_MAX_TOKENS,
+      temperature: 0.2,
+      system,
+      messages: chatMessages
+    })
+  });
+
+  const payload = (await readJsonResponse(response)) as AnthropicMessagesResponse;
+
+  if (!response.ok) {
+    throw new Error(payload.error?.message || `模型服务返回 HTTP ${response.status}`);
+  }
+
+  const content = extractAnthropicTextContent(payload);
+  if (!content) {
+    throw new Error("模型没有返回可解析的文本内容。");
+  }
+
+  return content;
+}
+
+export function buildOpenAICompatibleEndpoint(baseUrl: string): string {
+  return `${baseUrl.trim().replace(/\/+$/, "")}/chat/completions`;
+}
+
+export function buildAnthropicCompatibleEndpoint(baseUrl: string): string {
+  const normalized = baseUrl.trim().replace(/\/+$/, "");
+
+  if (normalized.endsWith("/v1/messages")) {
+    return normalized;
+  }
+
+  if (normalized.endsWith("/v1")) {
+    return `${normalized}/messages`;
+  }
+
+  return `${normalized}/v1/messages`;
+}
+
+export function extractAnthropicTextContent(payload: AnthropicMessagesResponse): string {
+  return (payload.content ?? [])
+    .filter((item) => item.type === "text" && typeof item.text === "string")
+    .map((item) => item.text?.trim())
+    .filter((text): text is string => Boolean(text))
+    .join("\n");
 }
 
 async function readJsonResponse(response: Response): Promise<unknown> {

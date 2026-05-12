@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Download, ExternalLink, PlayCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LearningMap, LearningPackage } from "../../shared/types";
 
 interface TrainingViewProps {
@@ -7,24 +7,133 @@ interface TrainingViewProps {
   learningMap: LearningMap | null;
   learningPackage: LearningPackage | null;
   onExportMarkdown: () => void;
+  onAnswersChange?: (answers: Record<string, string>) => void;
+  onAnswersCommit?: (answers: Record<string, string>) => void;
+  answersCommitDelayMs?: number;
   onLocateSourceQuote?: (quote: string) => void;
   onStartTraining: () => void;
 }
 
 export function TrainingView({
+  answersCommitDelayMs = 800,
   isBusy,
   learningMap,
   learningPackage,
+  onAnswersCommit,
+  onAnswersChange,
   onExportMarkdown,
   onLocateSourceQuote,
   onStartTraining
 }: TrainingViewProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [questionResult, setQuestionResult] = useState<Record<string, "correct" | "incorrect">>({});
+  const answersCommitTimer = useRef<number | undefined>(undefined);
+  const pendingAnswersCommit = useRef<
+    | {
+        answers: Record<string, string>;
+        onCommit: (answers: Record<string, string>) => void;
+      }
+    | undefined
+  >(undefined);
+  const autoAdvanceTimer = useRef<number | undefined>(undefined);
   const questions = learningPackage?.quiz ?? [];
+
+  const flushAnswersCommit = () => {
+    if (answersCommitTimer.current) {
+      window.clearTimeout(answersCommitTimer.current);
+      answersCommitTimer.current = undefined;
+    }
+
+    const pendingCommit = pendingAnswersCommit.current;
+    pendingAnswersCommit.current = undefined;
+    pendingCommit?.onCommit(pendingCommit.answers);
+  };
+
+  const scheduleAnswersCommit = (nextAnswers: Record<string, string>) => {
+    if (!onAnswersCommit) {
+      return;
+    }
+
+    if (answersCommitDelayMs <= 0) {
+      pendingAnswersCommit.current = undefined;
+      if (answersCommitTimer.current) {
+        window.clearTimeout(answersCommitTimer.current);
+        answersCommitTimer.current = undefined;
+      }
+      onAnswersCommit(nextAnswers);
+      return;
+    }
+
+    pendingAnswersCommit.current = {
+      answers: nextAnswers,
+      onCommit: onAnswersCommit
+    };
+
+    if (answersCommitTimer.current) {
+      window.clearTimeout(answersCommitTimer.current);
+    }
+
+    answersCommitTimer.current = window.setTimeout(() => {
+      flushAnswersCommit();
+    }, Math.max(0, answersCommitDelayMs));
+  };
+
+  useEffect(() => {
+    setAnswers(learningPackage?.answers ?? {});
+    setQuestionResult({});
+    setQuestionIndex(0);
+  }, [learningPackage?.id]);
+
+  useEffect(() => {
+    return () => {
+      flushAnswersCommit();
+    };
+  }, [learningPackage?.id]);
+
+  useEffect(() => {
+    if (questions.length > 0 && questionIndex >= questions.length) {
+      setQuestionIndex(0);
+    }
+  }, [questionIndex, questions.length]);
+
+  useEffect(() => {
+    return () => {
+      flushAnswersCommit();
+      if (autoAdvanceTimer.current) {
+        window.clearTimeout(autoAdvanceTimer.current);
+      }
+    };
+  }, []);
+
   const currentQuestionIndex = Math.min(questionIndex, Math.max(questions.length - 1, 0));
   const currentQuestion = questions[currentQuestionIndex];
   const selectedAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
+  const currentQuestionResult = currentQuestion ? questionResult[currentQuestion.id] : undefined;
+
+  const selectAnswer = (questionId: string, optionId: string) => {
+    const nextAnswers = { ...answers, [questionId]: optionId };
+    const nextQuestionResult: Record<string, "correct" | "incorrect"> = {
+      ...questionResult,
+      [questionId]:
+        learningPackage?.quiz.find((question) => question.id === questionId)?.correctOptionId === optionId ? "correct" : "incorrect"
+    };
+    setAnswers(nextAnswers);
+    setQuestionResult(nextQuestionResult);
+    onAnswersChange?.(nextAnswers);
+    scheduleAnswersCommit(nextAnswers);
+
+    if (autoAdvanceTimer.current) {
+      window.clearTimeout(autoAdvanceTimer.current);
+    }
+
+    if (nextQuestionResult[questionId] === "correct" && currentQuestionIndex < questions.length - 1) {
+      autoAdvanceTimer.current = window.setTimeout(() => {
+        setQuestionIndex((current) => (current === currentQuestionIndex ? current + 1 : current));
+        autoAdvanceTimer.current = undefined;
+      }, 500);
+    }
+  };
 
   if (!learningPackage) {
     return (
@@ -64,22 +173,24 @@ export function TrainingView({
           <h2>{currentQuestion.question}</h2>
           {currentQuestion.options.map((option) => {
             const isSelected = selectedAnswer === option.id;
-            const isCorrect = selectedAnswer && option.id === currentQuestion.correctOptionId;
+            const isCorrect = currentQuestionResult === "correct" && option.id === currentQuestion.correctOptionId;
+            const isWrongSelection = currentQuestionResult === "incorrect" && isSelected;
             return (
               <button
-                className={`option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""}`}
+                className={`option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isWrongSelection ? "incorrect" : ""}`}
                 key={option.id}
                 type="button"
-                onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: option.id }))}
+                onClick={() => selectAnswer(currentQuestion.id, option.id)}
               >
                 {option.text}
               </button>
             );
           })}
           {selectedAnswer && (
-            <div className="answer-panel">
-              <strong>{selectedAnswer === currentQuestion.correctOptionId ? "回答正确" : "再看一次原文依据"}</strong>
+            <div className={`answer-panel ${currentQuestionResult === "incorrect" ? "incorrect" : "correct"}`}>
+              <strong>{currentQuestionResult === "incorrect" ? "回答错误" : "回答正确"}</strong>
               <p>{currentQuestion.explanation}</p>
+              {currentQuestionResult === "incorrect" && <p>先看原文依据，再重新选择。</p>}
             </div>
           )}
           <div className="quiz-nav">
