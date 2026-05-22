@@ -168,6 +168,7 @@ export function TrainingView({
         <article className="card quiz-card">
           <div className="quiz-header">
             <span className="eyebrow">自测 {currentQuestionIndex + 1}/{questions.length}</span>
+            <span className="eyebrow">{quizDifficultyLabel(currentQuestion.difficulty)}</span>
             <span>{answeredCount(answers, questions)} 已答</span>
           </div>
           <h2>{currentQuestion.question}</h2>
@@ -235,4 +236,10 @@ export function TrainingView({
 
 function answeredCount(answers: Record<string, string>, questions: LearningPackage["quiz"]) {
   return questions.filter((question) => Boolean(answers[question.id])).length;
+}
+
+function quizDifficultyLabel(difficulty?: string) {
+  if (difficulty === "easy") return "基础题";
+  if (difficulty === "hard") return "挑战题";
+  return "进阶题";
 }

@@ -18,6 +18,7 @@ import type {
   LearningPackage,
   RuntimeRequest,
   RuntimeResponse,
+  SourceLocationHint,
   UserFacingError
 } from "../shared/types";
 import { isSamePageUrl } from "./pageContext";
@@ -193,7 +194,11 @@ export async function exportMarkdown(learningPackage: LearningPackage): Promise<
   }
 }
 
-export async function locateSourceQuote(quote: string, pageUrl?: string): Promise<RuntimeResponse<true>> {
+export async function locateSourceQuote(
+  quote: string,
+  pageUrl?: string,
+  locationHint?: SourceLocationHint
+): Promise<RuntimeResponse<true>> {
   if (!hasChromeTabs()) return { ok: false, error: extensionUnavailableError };
 
   const tab = pageUrl ? await getTabForPageUrl(pageUrl) : await getActiveTab();
@@ -208,7 +213,7 @@ export async function locateSourceQuote(quote: string, pageUrl?: string): Promis
     };
   }
 
-  return sendTabMessage<true>(tab, { type: "LOCATE_SOURCE_QUOTE", quote });
+  return sendTabMessage<true>(tab, { type: "LOCATE_SOURCE_QUOTE", quote, locationHint });
 }
 
 function hasChromeStorage() {

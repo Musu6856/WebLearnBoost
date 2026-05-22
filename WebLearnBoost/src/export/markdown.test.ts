@@ -34,6 +34,7 @@ const learningPackage: LearningPackage = {
       ],
       correctOptionId: "A",
       explanation: "原文依据能帮助用户回看上下文。",
+      difficulty: "medium",
       sourceQuote: "检索外部知识增强大模型回答"
     }
   ],
@@ -52,6 +53,7 @@ describe("learningPackageToMarkdown", () => {
     expect(markdown).toContain("## 摘要");
     expect(markdown).toContain("## 练习题");
     expect(markdown).toContain("## 原文摘录");
+    expect(markdown).toContain("【进阶】RAG 为什么需要原文依据？");
     expect(markdown).toContain("便于核对结论 (正确, 已选)");
   });
 });

@@ -4,6 +4,7 @@ import type {
   LearningMap,
   LearningPackage,
   QuizQuestion,
+  QuizDifficulty,
   RuntimeResponse,
   SummaryItem,
   UserFacingError
@@ -107,6 +108,9 @@ export async function generateTrainingContent(
           "You generate study summaries and quiz questions from a page and a learning map.",
           "Use concise wording and preserve sourceQuote values when the page contains direct support.",
           "Use the user's requested output language.",
+          "Generate 3-option multiple-choice questions with plausible distractors that are hard to eliminate by inspection.",
+          "Mix difficulty levels when possible and label each question as easy, medium, or hard.",
+          "Avoid making the correct answer always appear in the same option position.",
           JSON_INSTRUCTIONS,
           "The JSON shape must be:",
           JSON.stringify({
@@ -122,6 +126,7 @@ export async function generateTrainingContent(
                 ],
                 correctOptionId: "A",
                 explanation: "string",
+                difficulty: "easy",
                 sourceQuote: "optional string"
               }
             ],
@@ -185,10 +190,11 @@ export function createDemoTrainingContent(
         options: [
           { id: "A", text: "先建立整体结构，再进入细节" },
           { id: "B", text: "直接背诵所有句子" },
-          { id: "C", text: "只阅读最后一段" }
+          { id: "C", text: "先只看最后一段结论" }
         ],
         correctOptionId: "A",
         explanation: "学习地图的作用是先帮助你建立结构化理解，再补充证据和练习。",
+        difficulty: "medium",
         sourceQuote: pageContent.excerpt || firstSourceQuote(pageContent.text)
       }
     ],
@@ -396,7 +402,7 @@ function validateTrainingContent(value: unknown): TrainingContent {
       sourceQuote: optionalString(summaryItem, "sourceQuote")
     };
   });
-  const quiz = requireArray(object, "quiz").map(validateQuizQuestion);
+  const quiz = shuffleQuizQuestions(requireArray(object, "quiz").map(validateQuizQuestion));
   const sourceQuotes = optionalStringArray(object, "sourceQuotes");
 
   if (summary.length === 0 || quiz.length === 0) {
@@ -417,7 +423,7 @@ function validateQuizQuestion(item: unknown, index: number): QuizQuestion {
   });
   const correctOptionId = requireString(question, "correctOptionId");
 
-  if (options.length < 2 || !options.some((option) => option.id === correctOptionId)) {
+  if (options.length < 3 || !options.some((option) => option.id === correctOptionId)) {
     throw new Error(`模型返回的第 ${index + 1} 道题选项不完整。`);
   }
 
@@ -427,6 +433,7 @@ function validateQuizQuestion(item: unknown, index: number): QuizQuestion {
     options,
     correctOptionId,
     explanation: requireString(question, "explanation"),
+    difficulty: normalizeQuizDifficulty(optionalString(question, "difficulty")) ?? "medium",
     sourceQuote: optionalString(question, "sourceQuote")
   };
 }
@@ -457,6 +464,30 @@ function buildLearningPackage(
     locationHints: pageContent.locationHints,
     exportStatus: "idle"
   };
+}
+
+function shuffleQuizQuestions(quiz: QuizQuestion[]): QuizQuestion[] {
+  return quiz.map((question) => ({
+    ...question,
+    options: shuffleOptions(question.options)
+  }));
+}
+
+function shuffleOptions<T>(options: T[]): T[] {
+  const shuffled = [...options];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+function normalizeQuizDifficulty(value: string | undefined): QuizDifficulty | undefined {
+  if (value === "easy" || value === "medium" || value === "hard") {
+    return value;
+  }
+
+  return undefined;
 }
 
 function compactPageContent(pageContent: ExtractedPageContent) {

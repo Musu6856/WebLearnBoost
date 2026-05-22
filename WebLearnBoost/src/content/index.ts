@@ -1,4 +1,5 @@
 import type { ExtractedPageContent, InputScope, RuntimeRequest, RuntimeResponse, SourceLocationHint } from "../shared/types";
+import { normalizeSourceLocationText } from "../shared/sourceLocation";
 
 type TextBlock = {
   element: Element;
@@ -293,22 +294,34 @@ const extractPageContent = (scope: InputScope): RuntimeResponse<ExtractedPageCon
   };
 };
 
-const getLocateNeedle = (quote: string) => normalizeInlineText(quote).slice(0, 160);
+const getLocateNeedle = (quote: string) => normalizeSourceLocationText(quote).slice(0, 160);
+
+const matchesLocateNeedle = (candidateText: string, needle: string) => {
+  const normalizedCandidate = normalizeSourceLocationText(candidateText);
+  return normalizedCandidate.includes(needle) || needle.includes(normalizedCandidate.slice(0, 80));
+};
+
+const scrollElementIntoView = (element: Element | null | undefined) => {
+  if (!element) return false;
+  element.scrollIntoView({ behavior: "smooth", block: "center" });
+  return true;
+};
 
 const locateBySelector = (quote: string) => {
   const readable = getReadablePageText();
+  const needle = getLocateNeedle(quote);
   const hint = createLocationHints(readable.blocks, readable.text).find((candidate) => {
-    return candidate.selector && quote.includes(normalizeInlineText(candidate.textQuote).slice(0, 80));
+    return Boolean(candidate.selector && matchesLocateNeedle(candidate.textQuote, needle));
   });
   if (!hint?.selector) return false;
 
-  const element = document.querySelector(hint.selector);
-  element?.scrollIntoView({ behavior: "smooth", block: "center" });
-  return Boolean(element);
+  return scrollElementIntoView(document.querySelector(hint.selector));
 };
 
-const locateSourceQuote = (quote: string): RuntimeResponse<boolean> => {
-  const needle = getLocateNeedle(quote);
+const locateSourceQuote = (quote: string, locationHint?: SourceLocationHint): RuntimeResponse<boolean> => {
+  const sourceNeedle = getLocateNeedle(locationHint?.textQuote ?? quote);
+  const fallbackNeedle = getLocateNeedle(quote);
+  const needle = sourceNeedle || fallbackNeedle;
   if (!needle) {
     return {
       ok: false,
@@ -319,30 +332,38 @@ const locateSourceQuote = (quote: string): RuntimeResponse<boolean> => {
     };
   }
 
+  if (locationHint?.selector && scrollElementIntoView(document.querySelector(locationHint.selector))) {
+    return { ok: true, data: true };
+  }
+
+  if (locationHint?.textQuote && locateBySelector(locationHint.textQuote)) {
+    return { ok: true, data: true };
+  }
+
   if (locateBySelector(needle)) return { ok: true, data: true };
 
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => {
       const parent = node.parentElement;
       if (!parent || parent.closest(NOISE_SELECTOR)) return NodeFilter.FILTER_REJECT;
-      return normalizeInlineText(node.textContent ?? "").length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      return normalizeSourceLocationText(node.textContent ?? "").length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
     }
   });
 
   let node = walker.nextNode();
   while (node) {
-    const text = normalizeInlineText(node.textContent ?? "");
-    if (text.includes(needle) || needle.includes(text.slice(0, 80))) {
-      node.parentElement?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const text = node.textContent ?? "";
+    if (matchesLocateNeedle(text, needle)) {
+      scrollElementIntoView(node.parentElement);
       return { ok: true, data: true };
     }
     node = walker.nextNode();
   }
 
   const blocks = getTextBlocks(getReadableRoot());
-  const matchingBlock = blocks.find((block) => block.text.includes(needle) || needle.includes(block.text.slice(0, 80)));
+  const matchingBlock = blocks.find((block) => matchesLocateNeedle(block.text, needle));
   if (matchingBlock) {
-    matchingBlock.element.scrollIntoView({ behavior: "smooth", block: "center" });
+    scrollElementIntoView(matchingBlock.element);
     return { ok: true, data: true };
   }
 
@@ -363,7 +384,7 @@ chrome.runtime.onMessage.addListener((request: RuntimeRequest, _sender, sendResp
   }
 
   if (request.type === "LOCATE_SOURCE_QUOTE") {
-    sendResponse(locateSourceQuote(request.quote));
+    sendResponse(locateSourceQuote(request.quote, request.locationHint));
     return true;
   }
 

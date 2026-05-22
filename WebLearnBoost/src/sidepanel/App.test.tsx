@@ -215,7 +215,33 @@ describe("AppView learning flow", () => {
     await user.click(await screen.findByRole("button", { name: /开始训练/ }));
     await user.click(await screen.findByRole("button", { name: /测试的文章内容/ }));
 
-    expect(adapters.locateSourceQuote).toHaveBeenCalledWith("测试的文章内容", "https://example.com/article");
+    expect(adapters.locateSourceQuote).toHaveBeenCalledWith("测试的文章内容", "https://example.com/article", expect.objectContaining({ index: 0 }));
+  });
+
+  it("passes a matched selector when the quote is shorter than the original hint", async () => {
+    const hintedPackage: LearningPackage = {
+      ...learningPackage,
+      sourceQuotes: ["source snippet"],
+      locationHints: [{ textQuote: "source snippet with more context", selector: "#article p:nth-of-type(1)", index: 0 }]
+    };
+    const adapters = {
+      ...createAdapters(),
+      buildTrainingPackage: vi.fn(async () => ({ ok: true as const, data: hintedPackage })),
+      locateSourceQuote: vi.fn(async () => ({ ok: true as const, data: true as const }))
+    };
+    const user = userEvent.setup();
+
+    render(<AppView adapters={adapters} />);
+
+    await user.click(await screen.findByRole("button", { name: /生成学习地图/ }));
+    await user.click(await screen.findByRole("button", { name: /开始训练/ }));
+    await user.click(screen.getByRole("button", { name: "source snippet" }));
+
+    expect(adapters.locateSourceQuote).toHaveBeenCalledWith(
+      "source snippet",
+      "https://example.com/article",
+      expect.objectContaining({ selector: "#article p:nth-of-type(1)" })
+    );
   });
 
   it("keeps the generated map visible when training generation fails", async () => {

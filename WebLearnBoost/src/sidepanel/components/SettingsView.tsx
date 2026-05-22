@@ -43,7 +43,7 @@ export function SettingsView({ onSave, settings }: SettingsViewProps) {
       }}
     >
       <article className="card">
-        <span className="eyebrow">妯″瀷璁剧疆</span>
+        <span className="eyebrow">模型配置</span>
         <label>
           Provider
           <select value={draft.provider} onChange={(event) => updateProvider(event.target.value)}>
@@ -53,7 +53,11 @@ export function SettingsView({ onSave, settings }: SettingsViewProps) {
         </label>
         <label>
           Base URL
-          <input value={draft.baseUrl} onChange={(event) => updateDraft("baseUrl", event.target.value)} placeholder="https://api.openai.com/v1" />
+          <input
+            value={draft.baseUrl}
+            onChange={(event) => updateDraft("baseUrl", event.target.value)}
+            placeholder="https://api.openai.com/v1"
+          />
         </label>
         <label>
           API Key
@@ -64,12 +68,13 @@ export function SettingsView({ onSave, settings }: SettingsViewProps) {
           <input value={draft.model} onChange={(event) => updateDraft("model", event.target.value)} placeholder="gpt-4o-mini" />
         </label>
         <label>
-          杈撳嚭璇█
-          <input value={draft.outputLanguage} onChange={(event) => updateDraft("outputLanguage", event.target.value)} placeholder="涓枃" />
+          输出语言
+          <input value={draft.outputLanguage} onChange={(event) => updateDraft("outputLanguage", event.target.value)} placeholder="中文" />
         </label>
       </article>
       <button className="primary" type="submit">
-        <Save size={18} />淇濆瓨閰嶇疆
+        <Save size={18} />
+        保存设置
       </button>
     </form>
   );

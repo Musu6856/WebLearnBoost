@@ -27,6 +27,7 @@ import type {
   InputScope,
   LearningMap,
   LearningPackage,
+  SourceLocationHint,
   UserFacingError,
   ViewName
 } from "../shared/types";
@@ -315,7 +316,8 @@ export function AppView({ adapters }: { adapters: AppAdapters }) {
   };
 
   const handleLocateSourceQuote = async (quote: string) => {
-    const result = await adapters.locateSourceQuote(quote, state.activePackage?.url);
+    const locationHint = findBestSourceLocationHint(state.activePackage, quote);
+    const result = await adapters.locateSourceQuote(quote, state.activePackage?.url, locationHint);
     if (!result.ok) {
       setState((current) => ({ ...current, status: "failed", busyStartedAt: null, error: result.error }));
     }
@@ -514,6 +516,46 @@ function upsertHistory(history: LearningPackage[], learningPackage: LearningPack
   return [learningPackage, ...history.filter((item) => item.id !== learningPackage.id)].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
+}
+
+function findBestSourceLocationHint(learningPackage: LearningPackage | null, quote: string): SourceLocationHint | undefined {
+  if (!learningPackage || !quote.trim()) return undefined;
+
+  const normalizedQuote = normalizeSourceMatchText(quote);
+  if (!normalizedQuote) return undefined;
+
+  let bestHint: SourceLocationHint | undefined;
+  let bestScore = 0;
+
+  for (const hint of learningPackage.locationHints) {
+    const normalizedHint = normalizeSourceMatchText(hint.textQuote);
+    if (!normalizedHint) continue;
+
+    let score = 0;
+    if (normalizedHint === normalizedQuote) {
+      score = 3;
+    } else if (normalizedHint.includes(normalizedQuote)) {
+      score = 2;
+    } else if (normalizedQuote.includes(normalizedHint)) {
+      score = 1;
+    }
+
+    if (score === 0) continue;
+    if (!bestHint || score > bestScore || (score === bestScore && normalizedHint.length < normalizeSourceMatchText(bestHint.textQuote).length)) {
+      bestHint = hint;
+      bestScore = score;
+    }
+  }
+
+  return bestHint;
+}
+
+function normalizeSourceMatchText(text: string) {
+  return text
+    .normalize("NFKC")
+    .replace(/[\u00a0\s]+/g, "")
+    .replace(/[“”"‘’'，。！？；：、,.!?;:·\-—()/（）【】\[\]{}<>]/g, "")
+    .trim();
 }
 
 function hasChromeTabsEvent() {

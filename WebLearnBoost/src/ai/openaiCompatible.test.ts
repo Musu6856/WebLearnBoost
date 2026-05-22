@@ -38,10 +38,12 @@ const trainingResponse = {
       question: "RAG 的关键价值是什么？",
       options: [
         { id: "A", text: "增强回答依据" },
-        { id: "B", text: "替代网页阅读" }
+        { id: "B", text: "替代网页阅读" },
+        { id: "C", text: "只生成标题" }
       ],
       correctOptionId: "A",
       explanation: "RAG 通过检索资料给回答提供依据。",
+      difficulty: "medium",
       sourceQuote: "检索外部知识增强回答"
     }
   ],
@@ -133,6 +135,24 @@ describe("provider requests", () => {
     });
   });
 
+  it("asks for plausible quiz distractors and difficulty labels", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        choices: [{ message: { content: JSON.stringify(trainingResponse) } }]
+      })
+    );
+
+    const result = await generateTrainingContent(openAISettings, pageContent, learningMapResponse);
+
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.messages[0].content).toContain("3-option multiple-choice questions");
+    expect(body.messages[0].content).toContain("difficulty");
+    expect(body.messages[0].content).toContain("Avoid making the correct answer always appear in the same option position");
+  });
+
   it("sends Anthropic-compatible headers and messages body", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       jsonResponse({
@@ -185,6 +205,7 @@ describe("provider requests", () => {
     if (!trainingResult.ok) return;
     expect(trainingResult.data.summary[0].text).toContain("外部知识");
     expect(trainingResult.data.quiz[0].correctOptionId).toBe("A");
+    expect(trainingResult.data.quiz[0].difficulty).toBe("medium");
   });
 
   it("extracts only text blocks from Anthropic-compatible responses", () => {

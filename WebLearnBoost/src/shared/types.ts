@@ -62,12 +62,15 @@ export interface QuizOption {
   text: string;
 }
 
+export type QuizDifficulty = "easy" | "medium" | "hard";
+
 export interface QuizQuestion {
   id: string;
   question: string;
   options: QuizOption[];
   correctOptionId: string;
   explanation: string;
+  difficulty?: QuizDifficulty;
   sourceQuote?: string;
   locationHint?: SourceLocationHint;
 }
@@ -103,7 +106,7 @@ export interface UserFacingError {
 
 export type RuntimeRequest =
   | { type: "GET_ACTIVE_TAB_CONTENT"; scope: InputScope }
-  | { type: "LOCATE_SOURCE_QUOTE"; quote: string };
+  | { type: "LOCATE_SOURCE_QUOTE"; quote: string; locationHint?: SourceLocationHint };
 
 export type RuntimeResponse<T> =
   | { ok: true; data: T }

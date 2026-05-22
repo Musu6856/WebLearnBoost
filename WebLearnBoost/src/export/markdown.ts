@@ -49,7 +49,7 @@ function quizItems(items: QuizQuestion[], answers: Record<string, string>): stri
         .join("\n");
 
       return [
-        `${index + 1}. ${item.question}`,
+        `${index + 1}. ${difficultyTag(item.difficulty)}${item.question}`,
         options,
         `   - 解析：${item.explanation}`,
         item.sourceQuote ? `   > ${item.sourceQuote}` : "",
@@ -68,6 +68,12 @@ function numberedStructure(items: LearningPackage["learningMap"]["structure"]): 
   return items
     .map((item, index) => `${index + 1}. **${item.title}**：${item.description}`)
     .join("\n");
+}
+
+function difficultyTag(difficulty?: string): string {
+  if (difficulty === "easy") return "【基础】";
+  if (difficulty === "hard") return "【挑战】";
+  return "【进阶】";
 }
 
 export function learningPackageToMarkdown(learningPackage: LearningPackage): string {
@@ -159,4 +165,3 @@ export function downloadLearningPackageMarkdown(learningPackage: LearningPackage
     createMarkdownFilename(learningPackage),
   );
 }
-
