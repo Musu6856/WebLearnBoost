@@ -1,5 +1,4 @@
 import type { ExtractedPageContent, InputScope, RuntimeRequest, RuntimeResponse, SourceLocationHint } from "../shared/types";
-import { normalizeSourceLocationText, sourceLocationTextsMatch } from "../shared/sourceLocation";
 
 type TextBlock = {
   element: Element;
@@ -12,6 +11,11 @@ type TextBlock = {
 const MIN_PAGE_TEXT_LENGTH = 120;
 const MIN_SELECTION_TEXT_LENGTH = 40;
 const MAX_TEXT_LENGTH = 50000;
+const LOCATION_TEXT_PATTERN = /[\s\u00a0]+/g;
+const LOCATION_PUNCTUATION_PATTERN = /[\u201c\u201d"'‘’`.,，。！？!?；;：:、·…—\-_/\\()\[\]{}【】<>《》]/g;
+const MIN_REVERSE_FRAGMENT_LENGTH = 18;
+const MIN_REVERSE_COVERAGE = 0.65;
+const CJK_PATTERN = /[\u3400-\u9fff]/g;
 const NOISE_SELECTOR = [
   "script",
   "style",
@@ -81,6 +85,39 @@ const normalizeText = (text: string) =>
     .trim();
 
 const normalizeInlineText = (text: string) => normalizeText(text).replace(/\s+/g, " ").trim();
+
+const normalizeSourceLocationText = (text: string) =>
+  text
+    .normalize("NFKC")
+    .replace(LOCATION_TEXT_PATTERN, "")
+    .replace(LOCATION_PUNCTUATION_PATTERN, "")
+    .trim();
+
+const isMeaningfulFragment = (normalizedText: string) => {
+  const cjkCount = normalizedText.match(CJK_PATTERN)?.length ?? 0;
+  return cjkCount >= 6 || normalizedText.length >= 12;
+};
+
+const sourceLocationTextsMatch = (candidateText: string, quote: string) => {
+  const normalizedCandidate = normalizeSourceLocationText(candidateText);
+  const normalizedQuote = normalizeSourceLocationText(quote);
+
+  if (!normalizedCandidate || !normalizedQuote) return false;
+  if (normalizedCandidate === normalizedQuote) return true;
+
+  if (normalizedCandidate.includes(normalizedQuote)) {
+    return isMeaningfulFragment(normalizedQuote);
+  }
+
+  if (normalizedQuote.includes(normalizedCandidate)) {
+    return (
+      normalizedCandidate.length >= MIN_REVERSE_FRAGMENT_LENGTH &&
+      normalizedCandidate.length / normalizedQuote.length >= MIN_REVERSE_COVERAGE
+    );
+  }
+
+  return false;
+};
 
 const isVisibleElement = (element: Element) => {
   const htmlElement = element as HTMLElement;
