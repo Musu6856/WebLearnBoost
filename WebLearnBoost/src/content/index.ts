@@ -1,5 +1,5 @@
 import type { ExtractedPageContent, InputScope, RuntimeRequest, RuntimeResponse, SourceLocationHint } from "../shared/types";
-import { normalizeSourceLocationText } from "../shared/sourceLocation";
+import { normalizeSourceLocationText, sourceLocationTextsMatch } from "../shared/sourceLocation";
 
 type TextBlock = {
   element: Element;
@@ -296,10 +296,7 @@ const extractPageContent = (scope: InputScope): RuntimeResponse<ExtractedPageCon
 
 const getLocateNeedle = (quote: string) => normalizeSourceLocationText(quote).slice(0, 160);
 
-const matchesLocateNeedle = (candidateText: string, needle: string) => {
-  const normalizedCandidate = normalizeSourceLocationText(candidateText);
-  return normalizedCandidate.includes(needle) || needle.includes(normalizedCandidate.slice(0, 80));
-};
+const matchesLocateNeedle = (candidateText: string, quote: string) => sourceLocationTextsMatch(candidateText, quote);
 
 const scrollElementIntoView = (element: Element | null | undefined) => {
   if (!element) return false;
@@ -309,9 +306,8 @@ const scrollElementIntoView = (element: Element | null | undefined) => {
 
 const locateBySelector = (quote: string) => {
   const readable = getReadablePageText();
-  const needle = getLocateNeedle(quote);
   const hint = createLocationHints(readable.blocks, readable.text).find((candidate) => {
-    return Boolean(candidate.selector && matchesLocateNeedle(candidate.textQuote, needle));
+    return Boolean(candidate.selector && matchesLocateNeedle(candidate.textQuote, quote));
   });
   if (!hint?.selector) return false;
 
@@ -319,9 +315,9 @@ const locateBySelector = (quote: string) => {
 };
 
 const locateSourceQuote = (quote: string, locationHint?: SourceLocationHint): RuntimeResponse<boolean> => {
-  const sourceNeedle = getLocateNeedle(locationHint?.textQuote ?? quote);
-  const fallbackNeedle = getLocateNeedle(quote);
-  const needle = sourceNeedle || fallbackNeedle;
+  const primaryQuote = quote.trim();
+  const hintQuote = locationHint?.textQuote?.trim() ?? "";
+  const needle = getLocateNeedle(primaryQuote || hintQuote);
   if (!needle) {
     return {
       ok: false,
@@ -332,15 +328,23 @@ const locateSourceQuote = (quote: string, locationHint?: SourceLocationHint): Ru
     };
   }
 
-  if (locationHint?.selector && scrollElementIntoView(document.querySelector(locationHint.selector))) {
-    return { ok: true, data: true };
+  if (locationHint?.selector) {
+    const hintedElement = document.querySelector(locationHint.selector);
+    const hintedText = hintedElement?.textContent ?? "";
+    if (
+      hintedElement &&
+      (matchesLocateNeedle(hintedText, primaryQuote) || (hintQuote && matchesLocateNeedle(hintedText, hintQuote)))
+    ) {
+      scrollElementIntoView(hintedElement);
+      return { ok: true, data: true };
+    }
   }
 
-  if (locationHint?.textQuote && locateBySelector(locationHint.textQuote)) {
+  if (primaryQuote && locateBySelector(primaryQuote)) return { ok: true, data: true };
+
+  if (hintQuote && locateBySelector(hintQuote)) {
     return { ok: true, data: true };
   }
-
-  if (locateBySelector(needle)) return { ok: true, data: true };
 
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => {
@@ -353,7 +357,7 @@ const locateSourceQuote = (quote: string, locationHint?: SourceLocationHint): Ru
   let node = walker.nextNode();
   while (node) {
     const text = node.textContent ?? "";
-    if (matchesLocateNeedle(text, needle)) {
+    if (matchesLocateNeedle(text, primaryQuote) || (hintQuote && matchesLocateNeedle(text, hintQuote))) {
       scrollElementIntoView(node.parentElement);
       return { ok: true, data: true };
     }
@@ -361,7 +365,7 @@ const locateSourceQuote = (quote: string, locationHint?: SourceLocationHint): Ru
   }
 
   const blocks = getTextBlocks(getReadableRoot());
-  const matchingBlock = blocks.find((block) => matchesLocateNeedle(block.text, needle));
+  const matchingBlock = blocks.find((block) => matchesLocateNeedle(block.text, primaryQuote) || (hintQuote && matchesLocateNeedle(block.text, hintQuote)));
   if (matchingBlock) {
     scrollElementIntoView(matchingBlock.element);
     return { ok: true, data: true };

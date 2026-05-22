@@ -9,6 +9,7 @@ import type {
   SummaryItem,
   UserFacingError
 } from "../shared/types";
+import { sourceLocationTextsMatch } from "../shared/sourceLocation";
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -443,10 +444,18 @@ function buildLearningPackage(
   learningMap: LearningMap,
   training: TrainingContent
 ): LearningPackage {
+  const summary = training.summary.map((item) => ({
+    ...item,
+    sourceQuote: resolveSourceQuote(item.sourceQuote, pageContent)
+  }));
+  const quiz = training.quiz.map((item) => ({
+    ...item,
+    sourceQuote: resolveSourceQuote(item.sourceQuote, pageContent)
+  }));
   const sourceQuotes = [
-    ...(training.sourceQuotes || []),
-    ...training.summary.map((item) => item.sourceQuote),
-    ...training.quiz.map((item) => item.sourceQuote)
+    ...(training.sourceQuotes || []).map((quote) => resolveSourceQuote(quote, pageContent)),
+    ...summary.map((item) => item.sourceQuote),
+    ...quiz.map((item) => item.sourceQuote)
   ].filter((quote): quote is string => Boolean(quote?.trim()));
 
   return {
@@ -457,13 +466,25 @@ function buildLearningPackage(
     inputScope: pageContent.scope,
     sourceText: pageContent.text,
     learningMap,
-    summary: training.summary,
-    quiz: training.quiz,
+    summary,
+    quiz,
     answers: {},
     sourceQuotes: Array.from(new Set(sourceQuotes)),
     locationHints: pageContent.locationHints,
     exportStatus: "idle"
   };
+}
+
+function resolveSourceQuote(quote: string | undefined, pageContent: ExtractedPageContent): string | undefined {
+  if (!quote?.trim()) return undefined;
+  if (sourceLocationTextsMatch(pageContent.text, quote)) return quote.trim();
+
+  const matchingHint = pageContent.locationHints.find((hint) => sourceLocationTextsMatch(hint.textQuote, quote));
+  if (matchingHint) {
+    return quote.trim();
+  }
+
+  return undefined;
 }
 
 function shuffleQuizQuestions(quiz: QuizQuestion[]): QuizQuestion[] {

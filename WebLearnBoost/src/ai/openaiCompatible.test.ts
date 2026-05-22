@@ -208,6 +208,46 @@ describe("provider requests", () => {
     expect(trainingResult.data.quiz[0].difficulty).toBe("medium");
   });
 
+  it("drops source quotes that do not appear in the page text", async () => {
+    const paraphrasedTraining = {
+      summary: [
+        {
+          text: "RAG 会把外部知识放进上下文里。",
+          sourceQuote: "RAG 通过检索外部知识提高答案质量"
+        }
+      ],
+      quiz: [
+        {
+          id: "q1",
+          question: "RAG 的作用是什么？",
+          options: [
+            { id: "A", text: "增强回答依据" },
+            { id: "B", text: "替代网页阅读" },
+            { id: "C", text: "只生成标题" }
+          ],
+          correctOptionId: "A",
+          explanation: "RAG 会把外部知识放进上下文。",
+          sourceQuote: "RAG 通过检索外部知识提高答案质量"
+        }
+      ],
+      sourceQuotes: ["RAG 通过检索外部知识提高答案质量"]
+    };
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        choices: [{ message: { content: JSON.stringify(paraphrasedTraining) } }]
+      })
+    );
+
+    const result = await generateTrainingContent(openAISettings, pageContent, learningMapResponse);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.summary[0].sourceQuote).toBeUndefined();
+    expect(result.data.quiz[0].sourceQuote).toBeUndefined();
+    expect(result.data.sourceQuotes).toHaveLength(0);
+  });
+
   it("extracts only text blocks from Anthropic-compatible responses", () => {
     expect(
       extractAnthropicTextContent({
