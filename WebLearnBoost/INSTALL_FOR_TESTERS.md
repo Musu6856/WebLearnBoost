@@ -10,7 +10,7 @@
 
 ## 安装步骤
 
-1. 下载发布包 `WebLearnBoost-v0.1.0.zip`。
+1. 下载发布包 `WebLearnBoost-v0.1.1.zip`。
 2. 解压这个 zip，得到一个扩展文件夹。
 3. 打开浏览器扩展管理页：
    - Chrome：地址栏输入 `chrome://extensions`
